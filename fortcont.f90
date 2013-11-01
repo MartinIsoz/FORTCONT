@@ -32,11 +32,11 @@
 !     Licence:    FreeBSD (viz. README.txt)
 !
 !     Je nutno:
-!     - vyresit ukonceni korektorPM i s ohledem na tecny vektor, je
+!     - vyresit ukonceni correctorPM i s ohledem na tecny vektor, je
 !       totiz pouzivan i k nalezeni prvniho tecneho vektoru
-!     - upravit + ozkouset korektorAL tak, aby vracel tecny vektor
-!     - zkusit prediktorAB, je to zbytecne komplikovana subroutina, kdyz
-!       budou korektory vracet odhady tecnych vektoru v dalsim bode
+!     - upravit + ozkouset correctorAL tak, aby vracel tecny vektor
+!     - zkusit predictorAB, je to zbytecne komplikovana subroutina, kdyz
+!       budou correctory vracet odhady tecnych vektoru v dalsim bode
 !       reseni a navic bude zrusena zavislost na GAUSE
 !     - zkontrolovat argumenty poustene v programu do DSGESV
 !
@@ -46,8 +46,8 @@
       implicit none
       private
       public      :: jacU,detStab,initRES,&
-     &               prediktorAB,prediktorPT,&
-     &               korektorAL,korektorPM,&
+     &               predictorAB,predictorPT,&
+     &               correctorAL,correctorPM,&
      &               solver
       contains
 !
@@ -245,7 +245,7 @@
 !=====HEAD==============================================================
 !
 !     subroutina pro vypocteni prvotniho tecneho vektoru. v pripade, ze
-!     neni pouzivan KOREKTORPM, nebyl by tento vektor pri startu
+!     neni pouzivan correctorPM, nebyl by tento vektor pri startu
 !     algoritmu k dispozici -> je nutno jej dopocist
 !
 !     vypocet je zalozen na reseni soustavy rovnic
@@ -264,7 +264,7 @@
 !     JACU  ...   subroutina vracejici diferencial zobrazeni Rm->Rn,
 !                 je mozne fixovat nektere promenne, coz vyusti v matici
 !                 R(n x k), kde k je m-nFix. podrobneji v testjacU
-!     KOREKTORPM  subroutina na zpresneni bodu v okoli krivky reseni,
+!     correctorPM  subroutina na zpresneni bodu v okoli krivky reseni,
 !                 vraci i tecny vektor v danem bode
 !
 !     Vstupni argumenty programu:
@@ -322,7 +322,7 @@
             sMat(1:n(1),:)          = jac                               !prvnich n(1) radku je matice jacobianu
             sMat(n(1)+1:n(2),:)     = transpose(tVecO)                  !zbytek je tecny vektor
             iterIn                  = maxiter                           !restartuji pocitadlo iteraci
-            call korektorPM (subrF,xVec,tVecO,pars,n,m,g,eps,maxiter)
+            call correctorPM (subrF,xVec,tVecO,pars,n,m,g,eps,maxiter)
             if  (norm2(matmul(sMat,tVecO) - RHS) .lt. eps ) then
                   go to 666
             end if
@@ -334,15 +334,15 @@
 !
 !=======================================================================
 !
-      subroutine prediktorAB (subrF,xVec,tMat,pars,n,m,nSol,g,h)
+      subroutine predictorAB (subrF,xVec,tMat,pars,n,m,nSol,g,h)
 !
 !=====HLAVICKA==========================================================
 !
-!     Prediktor pro metodu prediktor-korektor konstrukce evolucnich
+!     predictor pro metodu predictor-corrector konstrukce evolucnich
 !     diagramu. pro nalezeni tecneho vektoru a promenne vuci ktere je
 !     reseni regularni je vyuzita kubickova subroutina gause
 !
-!     prediktor pro dany system vraci tecny vektor v bode x0
+!     predictor pro dany system vraci tecny vektor v bode x0
 !
 !     Program vola subroutiny:
 !     gause ...   kubickova subroutina, vraci tecny vektor podle jedne
@@ -381,7 +381,7 @@
 !     g     ...   velikost kroku pro numerickou derivaci
 !     h     ...   velikost kroku pro numerickou integraci AB
 !
-!     Pozn: tVec0 je vracen kvuli penrose-mooreovu korektoru, korektor
+!     Pozn: tVec0 je vracen kvuli penrose-mooreovu correctoru, corrector
 !           zalozeni na pseudodelkce oblouku jej nevyuzije
 !     Pozn: na to, ze od GAUSE potrebuju pouze tecny vektor (nadrovinu)
 !           toho pocita zbytecne mnoho navic...
@@ -436,7 +436,7 @@
       kor = 0                                                           !nutno inicializovat, jinak bordel s detStab, ZBAVIT SE GAUSE
       call jacU( subrF,xVec,pars,n,m,g,jac,jSW )                        !ziskam soustavu n rovnic pro n+1 nezn.
 !     volam kubickuv algoritmus gause - pocita toho zbytecne moc/malo
-      call gause( n(1),n(2),n(1),jac,kor,tVec,kfix,ierr )               !zavolam kubickovu gause, korektor je zde nulovy vektor
+      call gause( n(1),n(2),n(1),jac,kor,tVec,kfix,ierr )               !zavolam kubickovu gause, corrector je zde nulovy vektor
 !     integrace dalsiho kroku - pomoci AB najdu presnejsi odhad tVec
 !      write (unit=*,fmt=*) 'tMat before'
 !      do i=1,size(tMat,1)
@@ -456,19 +456,19 @@
       end do
       xVec = xVec + h*PV
       return
-      end subroutine prediktorAB
+      end subroutine predictorAB
 !
 !=======================================================================
 !      
-      subroutine prediktorPT (subrF,xVec,tMat,pars,n,m,nSol,g,h)
+      subroutine predictorPT (subrF,xVec,tMat,pars,n,m,nSol,g,h)
 !
 !=====HLAVICKA==========================================================
 !
-!     Prediktor pro metodu prediktor-korektor konstrukce evolucnich
-!     diagramu. tento prediktor potrebuje jiz pripravenou tMat a posune
+!     predictor pro metodu predictor-corrector konstrukce evolucnich
+!     diagramu. tento predictor potrebuje jiz pripravenou tMat a posune
 !     xVec na zaklade integrace AB formuli radu nSol
 !
-!     prediktor pro dany system vraci tecny vektor v bode x0
+!     predictor pro dany system vraci tecny vektor v bode x0
 !
 !     Program vola subroutiny:
 !     ZADNE externi subroutiny nejsou volany
@@ -483,11 +483,11 @@
 !                 [t(i-1);...;t(i-5)]
 !           ...   na vystupu matice s poslednim dopoctenym tecnym,
 !                 vektorem na prvnim radku,[t(i);...;t(i-4)]
-!           ...   oproti prediktorAB nemuze byt na vstupu nulovy vektor,
+!           ...   oproti predictorAB nemuze byt na vstupu nulovy vektor,
 !                 je xVec(OUT) = xVec(IN)
 !     pars  ...   vektor parametru pro subroutinu subrF, zde tento 
 !                 argument neni vyuzit, ale je mezi volanymi, pro
-!                 podrzeni stejnych volani pro vsechny korektory
+!                 podrzeni stejnych volani pro vsechny correctory
 !     n     ...   vektor s rozmery problemu, (/integer,integer/),
 !                 n1 - pocet rovnic
 !                 n2 - pocet stavovych promennych (vcetne parametru)
@@ -496,10 +496,10 @@
 !                 nenulovych radku)
 !     g     ...   velikost kroku pro numerickou derivaci, zde tento 
 !                 argument neni vyuzit, ale je mezi volanymi, pro
-!                 podrzeni stejnych volani pro vsechny korektory
+!                 podrzeni stejnych volani pro vsechny correctory
 !     h     ...   velikost kroku pro numerickou integraci AB
 !
-!     Pozn: tVec0 je vracen kvuli penrose-mooreovu korektoru, korektor
+!     Pozn: tVec0 je vracen kvuli penrose-mooreovu correctoru, corrector
 !           zalozeni na pseudodelkce oblouku jej nevyuzije
 !     Pozn: na to, ze od GAUSE potrebuju pouze tecny vektor (nadrovinu)
 !           toho pocita zbytecne mnoho navic...
@@ -553,20 +553,20 @@
       end do
       xVec = xVec + h*PV
       return
-      end subroutine prediktorPT
+      end subroutine predictorPT
 !
 !=======================================================================
 !      
-      subroutine korektorAL (subrF,x0,tVec0,pars,n,m,h,eps,maxiter)
+      subroutine correctorAL (subrF,x0,tVec0,pars,n,m,h,eps,maxiter)
 !
 !=====HLAVICKA==========================================================
 !
-!     Korektor pro metodu prediktor-korektor konstrukce evolucnich
+!     corrector pro metodu predictor-corrector konstrukce evolucnich
 !     diagramu, zalozen na n-rozmerne newtonove metode, vyuzivajici
 !     knihovny llapack k reseni soustav lin. rovnic
 !     Jac*Deltax = -f
 !
-!     korektor je zalozen na kontinuaci podle pseudodelky oblouku,
+!     corrector je zalozen na kontinuaci podle pseudodelky oblouku,
 !     pseudoarclength continuation, popsane v manualu programu MATCONT
 !
 !     Program vola subroutiny:
@@ -601,7 +601,7 @@
 !     maxiter..   maximalni pocet iteraci metody, navratova hodnota je
 !                 skutecny pocet iteraci newtona
 !
-!     Pozn: Oproti predchozimu korektoru zalozenem na algoritmu DERPAR
+!     Pozn: Oproti predchozimu correctoru zalozenem na algoritmu DERPAR
 !           (kubicek) jiz nevynechavam zadnou promennou, ale naopak,
 !           pridavam rovnici (parametrizace podle delky oblouku)
 !     Pozn: Prace s promennymi je sice psana obecne pro R(n+m)->Rn, ale
@@ -718,23 +718,23 @@
       call DSGESV(n(2),n(2)-n(1),dRHS,n(2),pivot,RHS,&
      & n(2),tVec0,n(2),swork,work,iter2,info)                           !reseni soustavy lin. rovnic - dopocteni noveho tecneho vekt.
       return
-      end subroutine korektorAL
+      end subroutine correctorAL
 !
 !=======================================================================
 !
-      subroutine korektorPM (subrF,x0,tVec0,pars,n,m,h,eps,maxiter)
+      subroutine correctorPM (subrF,x0,tVec0,pars,n,m,h,eps,maxiter)
 !
 !=====HLAVICKA==========================================================
 !
-!     Korektor pro metodu prediktor-korektor konstrukce evolucnich
+!     corrector pro metodu predictor-corrector konstrukce evolucnich
 !     diagramu, zalozen na n-rozmerne newtonove metode, vyuzivajici
 !     knihovny llapack k reseni soustav lin. rovnic
 !     Jac*Deltax = -f
 !
-!     korektor je zalozen na penrose-moorove pseudoinverzni matici, je
+!     corrector je zalozen na penrose-moorove pseudoinverzni matici, je
 !     upravovana nejenom hodnota nastrelu, ale i tecneho vektoru.
 !     bylo by vhodne prozkoumat myslenku, nemohl-li by tento tencny
-!     vektor slouzit primo jako tecny vektor v prediktoru
+!     vektor slouzit primo jako tecny vektor v predictoru
 !
 !     Program vola subroutiny:
 !     subrF ...   subroutina vracejici vektor residui /neboli vektorove
@@ -768,7 +768,7 @@
 !     maxiter..   maximalni pocet iteraci metody, navratova hodnota je
 !                 skutecny pocet iteraci newtona
 !
-!     Pozn: Oproti predchozimu korektoru zalozenem na algoritmu DERPAR
+!     Pozn: Oproti predchozimu correctoru zalozenem na algoritmu DERPAR
 !           (kubicek) jiz nevynechavam zadnou promennou, ale naopak,
 !           pridavam rovnici (parametrizace podle delky oblouku)
 !     Pozn: Prace s promennymi je sice psana obecne pro R(n+m)->Rn, ale
@@ -905,17 +905,17 @@
       x0 = xOld                                                         !ulozim vysledek
       maxiter = iter
       return
-      end subroutine korektorPM
+      end subroutine correctorPM
 !
 !=======================================================================
 !
-      subroutine solver (subrF,prediktor,korektor,x0,ip,BMin,BMax,BTrg,&
+      subroutine solver (subrF,predictor,corrector,x0,ip,BMin,BMax,BTrg,&
      & pars,n,m,g,h,maxstep,nprstep,eps,maxiter,wrtunt,retcode)
 !
 !=====HLAVICKA==========================================================
 !
 !     Solver pro kontinuacni ulohy, zatim pouze pro ulohy s kontinuaci
-!     jednoho parametru. Solver vola stridave prediktor a korektor, az
+!     jednoho parametru. Solver vola stridave predictor a corrector, az
 !     do chvile, nez dosahne zastavovaciho kriteria nebo selze metoda
 !
 !     Vysledky jsou zapisovany po krocich do wrtunt, je-li toto soubor,
@@ -931,25 +931,25 @@
 !                 stavove promenne (vcetne kontinuovanych parametru),
 !                 RSVec je vektor pravych stran a pars jsou vsechny
 !                 fixovane parametry
-!     PREDIKTOR.  subroutina poskytujici nastrel reseni na zaklade
-!                 predchoziho bodu. podrobneji v hlavicce prediktoru
-!     KOREKTOR..  subroutina upresnujici nastrel vytvoreny prediktorem,
-!                 presneji v hlavicce korektoru
+!     PREDICTOR.  subroutina poskytujici nastrel reseni na zaklade
+!                 predchoziho bodu. podrobneji v hlavicce predictoru
+!     CORRECTOR..  subroutina upresnujici nastrel vytvoreny predictorem,
+!                 presneji v hlavicce correctoru
 !     DETSTAB...  subroutina na urceni stability RS pro vynechany pocet
 !                 parametru
 !
 !     Pozn: Idea je takova, ze v dalsim bude mozne solver volat pro
-!           ruzne korektory (a mozna i prediktory), zatim je napsan
-!           korektor podle pseudodelky oblouku (AL), ale v dohledne dobe
-!           by mel byt dopsan i penrose-moore (PM) korektor
+!           ruzne correctory (a mozna i predictory), zatim je napsan
+!           corrector podle pseudodelky oblouku (AL), ale v dohledne dobe
+!           by mel byt dopsan i penrose-moore (PM) corrector
 !
 !     Vstupni argumenty programu:
 !     subrF ...   subroutina vracejici vektor residui (rovnice resene
 !                 soustavy)
 !                 vyzaduje subroutinu volatelnou func(xVec,FVec)
-!     prediktor   subroutina vracejici nastrel dalsiho bodu na krivce
+!     predictor   subroutina vracejici nastrel dalsiho bodu na krivce
 !                 reseni
-!     korektor.   subroutina zpresnujici nastrel prediktora
+!     corrector.   subroutina zpresnujici nastrel predictora
 !     x0    ...   pocatecni bod reseni
 !     ip    ...   indexy (pozice) parametru v x0
 !     BMin  ...   minimalni hodnoty stavovych promennych
@@ -966,10 +966,10 @@
 !                 hMin-minimalni delka kroku, h < hMin -> alg. failed
 !                 hMax-maximalni delka kroku, adaptaci jiz nenatahovan
 !     maxstep..   maximalni pocet kroku algoritmu
-!     nprstep..   kolika-krokovy je prediktor - kolik radku bude mit
+!     nprstep..   kolika-krokovy je predictor - kolik radku bude mit
 !                 matice tMat (pocet ukladanych tecnych vektoru)
 !     eps   ...   pozadovana presnost, ||xEnd - xEnd-1|| <= eps
-!     maxiter..   maximalni pocet iteraci korektora
+!     maxiter..   maximalni pocet iteraci correctora
 !     wrtunt...   jednotka pro zapisovani vysledku, je-li to soubor,
 !                 musi byt pripraven pro zapisovani
 !     retcode..   navratova hodnota algoritmu
@@ -978,7 +978,7 @@
 !                 1 - prekroceni maximalni (minimalni) hodnoty stavove
 !                     promenne, x(i) >(<) BMax(i)(BMin(i))
 !                 2 - prilis maly krok, h < hMin
-!                 3 - korektor nezkonvergoval, niter > maxiter
+!                 3 - corrector nezkonvergoval, niter > maxiter
 !                 4 - preroceni maximalniho povoleneho poctu kroku
 !
 !     Pozn: Prace s promennymi je sice psana obecne pro R(n+m)->Rn, ale
@@ -998,13 +998,13 @@
 !
 !-----argumenty---------------------------------------------------------
 !     externi subroutiny
-      external subrF,prediktor,korektor
+      external subrF,predictor,corrector
 !
 !     vstupni promenne
       integer(kind=4),intent(in)  :: n(2),m                             !n(1) rovnic, n(2) stav. prom, m pars
       integer(kind=4),intent(in)  :: ip(n(2)-n(1))                      !indexy parametru, delka je rozdil pocti rcic a prom
       integer(kind=4),intent(in)  :: nprstep                            !pocet ukladanych tecnych vektoru
-      integer(kind=4),intent(in)  :: maxiter                            !maximalni pocet iteraci korektora
+      integer(kind=4),intent(in)  :: maxiter                            !maximalni pocet iteraci correctora
       integer(kind=4),intent(in)  :: wrtunt                             !jednotky pro zapisovani vysledku - stable a unstable EP
       double precision,intent(in) :: x0(n(2))                           !pocatecni nastrel reseni
       double precision,intent(in) :: BMin(n(2)),BMax(n(2))              !hranice reseni
@@ -1019,13 +1019,13 @@
       integer(kind=4),intent(out) :: retcode                            !navratova hodnota
 !
 !-----lokalni promenne--------------------------------------------------
-!     PREDIKTOR
+!     predictor
       integer(kind=4)         :: nSol                                   !pocet predresenych tVec je 0
       double precision        :: tMat(nprstep,n(2))                     !matice tecnych vektoru
       double precision        :: hAct                                   !aktualni krok
-!     KOREKTOR
+!     corrector
       double precision        :: tVec(n(2))                             !tecny vektor (muze byt upravovan)
-      integer(kind=4)         :: niter                                  !pocitadlo iteraci korektora
+      integer(kind=4)         :: niter                                  !pocitadlo iteraci correctora
 !     DETSTAB
       logical                 :: stab=.true.                                   !promenna pro rozhodnuti o stabilite RS
 !     vseobecne
@@ -1057,7 +1057,7 @@
       niter = maxiter                                                   !restartuji pocitadlo iteraci newtona
       go to 666
 !-----kontrola-a-zpresneni-nastrelu-------------------------------------
-      call korektor(subrF,xVec,tVec,pars,n,m,g,eps,niter)
+      call corrector(subrF,xVec,tVec,pars,n,m,g,eps,niter)
       if (niter .eq. maxiter) then                                      !flag check
             retcode = 3                                                 !napln return code
             BTrg    = xVec                                              !posbirej vystupy
@@ -1072,13 +1072,13 @@
       call wrt2unit(wrtunt,miter,xVec,hAct,niter,stab)                  !vypis vysledku
 !-----vypocetni-cyklus---pripravny-(naplnim tMat)-----------------------
       do miter=1,nprstep-1,1                                            !zastaveni je reseno pres if/go to
-!     volani prediktora
-            call prediktor(subrF,xVec,tMat,pars,n,m,nSol,g,hAct)
+!     volani predictora
+            call predictor(subrF,xVec,tMat,pars,n,m,nSol,g,hAct)
             nSol  = nSol + 1
 !     preulozeni tecneho vektoru
             tVec  = tMat(1,:)                                           !ulozim vysledny tecny vektor
-!     volani korektora
-            call korektor(subrF,xVec,tVec,pars,n,m,g,eps,niter)
+!     volani correctora
+            call corrector(subrF,xVec,tVec,pars,n,m,g,eps,niter)
             if (niter .eq. maxiter) then                                !flag check
                   retcode = 3                                           !napln return code
                   BTrg    = xVec                                        !posbirej vystupy
@@ -1110,12 +1110,12 @@
 !-----vypocetni-cyklus---hlavni-s-plnou-tMat----------------------------
       hAct = h(1)                                                       !restartuji velikost kroku
       do miter=nprstep,maxstep-1,1                                      !zastaveni je reseno pres if/go to
-!     volani prediktora
-            call prediktor(subrF,xVec,tMat,pars,n,m,nSol,g,hAct)
+!     volani predictora
+            call predictor(subrF,xVec,tMat,pars,n,m,nSol,g,hAct)
 !     preulozeni tecneho vektoru
             tVec  = tMat(1,:)                                           !ulozim vysledny tecny vektor
-!     volani korektora
-            call korektor(subrF,xVec,tVec,pars,n,m,g,eps,niter)
+!     volani correctora
+            call corrector(subrF,xVec,tVec,pars,n,m,g,eps,niter)
 !     uprava delky kroku
             if (niter .eq. maxiter) then                                !flag check
                   retcode = 3                                           !nezkonvergoval newton
@@ -1183,7 +1183,7 @@
      &      'k', miter, &                                               !aktualni poradi kroku
      &      'x(k)', xVec , &                                            !vektor reseni
      &      'hAct', hAct, &                                             !pristi pouzity krok
-     &      'niter', niter, &                                            !pocet iteraci korektora
+     &      'niter', niter, &                                            !pocet iteraci correctora
      &      'stab', stab                                                !stabilita RS
             end subroutine wrt2unit
       end subroutine solver

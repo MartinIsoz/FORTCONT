@@ -1,59 +1,62 @@
 !
-!=====POZNAMKY=K=PROGRAMU===============================================
+!=====NOTES=============================================================
 !
-!     Modul s ukazkovymi vektorovymi poli pro testovani a ukazku
-!     souboru subroutin FORTCONT
+!     Module with sample vecfields for the set of subrooutines FORTCONT
 !
-!     Autor:      Martin Isoz
-!     Datum:      31/10/2013
-!     System:     Linux 3.2.0-54-generic
-!     Licence:    FreeBSD (viz. README.txt)
+!     Author:      Martin Isoz
+!     Date  :      01/11/2013
+!     System:      Linux 3.2.0-54-generic
+!     Lic.  :      FreeBSD (viz. LICENSE)
 !
-!=====ZAVEDENI=MODULU=SE=SUBROUTINAMI===================================
+!=====MODULE=WITH=SUBROUTINES===========================================
 !
       module Vecfields
       implicit none
       private
-      public      :: vecField1P
+      public      :: elastica1D1P
       contains
 !
 !=====SUBROUTINES=======================================================
 !
-            subroutine vecfield1P( xVec,RSVec,pars)                     !vypocet pravych stran vektoroveho pole
+            subroutine elastica1D1P( xVec,RSVec,pars)                     !vypocet pravych stran vektoroveho pole
 !
-!     vektorove pole pro kontinuaci podle jednoho parametru, prevzato z
-!     textu "korupce v demokraticke spolecnosti" - propagacni material
-!     programu MATCONT
+!     vector field for one parameter continuation, copied from the
+!     MATCONT propagation material.
 !
-!     jedna se o model vyduti nosniku pri zatizeni - hledame stacionarni
-!     stavy tohoto systemu v zavislostni na zatizeni (lambda). dalsim
-!     parametrem pole potom je prirozene nedokonalost materialu, delta.
+!     it is a model of a column from imperfect material under a
+!     concentric axial load exhibiting the characteristic deformation of
+!     buckling. load is represented by parameter La, which is used as
+!     the continuation parameter. the material imperfections and other
+!     influences are lumped into parameter De
 !
-!     xVec  ... vektor vstupu (stav. prom. 1 parametr) 
-!     RSVec ... vektor pravych stran
-!     pars  ... pevne volene hodnoty parametru        
+!     for more details on the problem, see for example wiki:
+!     http://en.wikipedia.org/wiki/Buckling
+!
+!     xVec  ... input vector (2 original state variables + 1 parameter) 
+!     RSVec ... right hand side vector - values returned by vecfield
+!     pars  ... fixed parameter of the problem
             implicit none
 !           
-            double precision,intent(in),dimension(3) :: xVec            !vstupni, stavova promenna
-            double precision,intent(in),dimension(3) :: pars            !vstupni promenna - parametry
-            double precision,intent(out),dimension(2) :: RSVec          !vystupni promenna
-!     lokalni promenne
-            double precision  :: MM,CC,De                               !parametry
-            double precision  :: uu1,uu2,La                             !stav. prom
-!     rozbaleni stavovych promennych
+            double precision,intent(in),dimension(3) :: xVec            !input, state variable
+            double precision,intent(in),dimension(3) :: pars            !input, fixed parameters
+            double precision,intent(out),dimension(2) :: RSVec          !output
+!     local variables (only for clarity of the code)
+            double precision  :: MM,CC,De                               !parameters
+            double precision  :: uu1,uu2,La                             !state variables
+!     state variables extraction
             uu1         = xVec(1)
             uu2         = xVec(2)
             La          = xVec(3)
-!     rozbaleni parametru
+!     parameters extraction
             MM          = pars(1)
             CC          = pars(2)
             De          = pars(3)
-!     vypocetni vystupnich hodnot
+!     output values calculation
             RSVec(1)    = uu2
             RSVec(2)    = 1.0d0/MM*(-(uu1-De) + &
      &2.0d0*La*sin(uu1)) - CC*uu2
             return
-      end subroutine vecfield1P
+      end subroutine elastica1D1P
 !
 !=======================================================================
 !
